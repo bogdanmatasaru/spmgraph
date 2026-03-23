@@ -35,7 +35,7 @@ let package = Package(
     ),
     .package(
       url: "https://github.com/apple/swift-argument-parser.git",
-      .upToNextMinor(from: "1.6.2")
+      .upToNextMinor(from: "1.7.1")
     ),
 
     // - Pinned to the the Swift 6.2 development / Xcode 16.3
