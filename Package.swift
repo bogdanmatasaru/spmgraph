@@ -169,6 +169,16 @@ let package = Package(
       ]
     ),
     .testTarget(
+      name: "SPMGraphLintTests",
+      dependencies: [
+        .target(name: "SPMGraphLint"),
+        .target(name: "FixtureSupport"),
+      ],
+      swiftSettings: [
+        .enableExperimentalFeature("StrictConcurrency")
+      ]
+    ),
+    .testTarget(
       name: "SPMGraphDescriptionInterfaceTests",
       dependencies: [
         .target(name: "SPMGraphDescriptionInterface"),

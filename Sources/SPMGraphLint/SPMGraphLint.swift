@@ -27,6 +27,8 @@ import SPMGraphDescriptionInterface
 public struct SPMGraphLintInput: Equatable {
   /// "Directory path of Package.swift file"
   let spmPackageDirectory: AbsolutePath
+  /// Further Package.swift directories linted together with ``spmPackageDirectory``
+  let additionalPackageDirectories: [AbsolutePath]
   /// A custom build directory for the package used to edit and load the SPMGraphConfig.
   let configBuildDirectory: AbsolutePath
   /// Comma separated array of suffixes to exclude from the graph e.g. 'Tests','Live','TestSupport'
@@ -40,26 +42,36 @@ public struct SPMGraphLintInput: Equatable {
   let expectedWarningsCount: UInt
   /// Relative path for an output file with the formatted lint results. By default the errors are added only listed in the sdtout.
   let outputFilePath: String?
+  /// A file listing today's accepted violations, one identity per line. New violations and stale entries fail the lint.
+  let baselinePath: AbsolutePath?
+  /// Writes the current violations into ``baselinePath`` instead of comparing against it
+  let writeBaseline: Bool
 }
 
 public extension SPMGraphLintInput {
   /// Makes an instance of ``SPMGraphLintInput``
   init(
     spmPackageDirectory: String,
+    additionalPackageDirectories: [String] = [],
     configBuildDirectory: String?,
     excludedSuffixes: [String],
     isStrict: Bool,
     verbose: Bool,
     expectedWarningsCount: UInt,
-    outputFilePath: String?
+    outputFilePath: String?,
+    baselinePath: String? = nil,
+    writeBaseline: Bool = false
   ) throws {
     self.spmPackageDirectory = try AbsolutePath.packagePath(spmPackageDirectory)
+    self.additionalPackageDirectories = try additionalPackageDirectories.map(AbsolutePath.packagePath)
     self.configBuildDirectory = try AbsolutePath.configBuildDirectory(configBuildDirectory)
     self.excludedSuffixes = excludedSuffixes
     self.isStrict = isStrict
     self.verbose = verbose
     self.expectedWarningsCount = expectedWarningsCount
     self.outputFilePath = outputFilePath
+    self.baselinePath = try baselinePath.map(AbsolutePath.packagePath)
+    self.writeBaseline = writeBaseline
   }
 }
 
@@ -130,18 +142,20 @@ public final class SPMGraphLint: SPMGraphLintProtocol {
 
   /// Lints the Swift Package dependency graph
   public func run() async throws {
-    let package = try await packageLoader.load(
-      input.spmPackageDirectory,
-      input.verbose
-    )
+    var packages: [Package] = []
+    for directory in [input.spmPackageDirectory] + input.additionalPackageDirectories {
+      packages.append(try await packageLoader.load(directory, input.verbose))
+    }
 
-    let result = lintGraph(package: package)
+    let result = lintGraph(packages: packages)
 
     if let outputFilePath = input.outputFilePath {
       try generateOutput(lintMessage: result.message, outputFilePath: outputFilePath)
     }
 
-    if result.hasErrors && isStrict {
+    if let baselinePath = input.baselinePath {
+      try checkBaseline(at: baselinePath, identities: result.identities)
+    } else if result.hasErrors && isStrict {
       throw SPMGraphLint.Error.lintFailedAndStrictIsOn
     }
   }
@@ -153,11 +167,36 @@ private extension SPMGraphLint {
   struct Result: Equatable {
     let hasErrors: Bool
     let message: String
+    let identities: Set<String>
   }
 
-  func lintGraph(package: Package) -> Result {
+  func checkBaseline(at path: AbsolutePath, identities: Set<String>) throws {
+    if input.writeBaseline {
+      let contents = identities.sorted().map { "\($0)\n" }.joined()
+      try localFileSystem.writeFileContents(path, string: contents)
+      print("✅ Wrote \(identities.count) baseline entries into \(path)")
+      return
+    }
+
+    let baseline = Set(
+      try localFileSystem.readFileContents(path).cString
+        .split(separator: "\n")
+        .map(String.init)
+    )
+    let new = identities.subtracting(baseline).sorted()
+    let stale = baseline.subtracting(identities).sorted()
+    guard new.isEmpty && stale.isEmpty else {
+      new.forEach { print("❌ New violation: \($0)") }
+      stale.forEach { print("❌ Fixed, remove from the baseline: \($0)") }
+      throw SPMGraphLint.Error.baselineMismatch(new: new, stale: stale)
+    }
+    print("✅ Violations match the baseline (\(baseline.count) entries)")
+  }
+
+  func lintGraph(packages: [Package]) -> Result {
     var totalErrorsCount = 0
     var lintMessage = ""
+    var identities: Set<String> = []
 
     rules.forEach { rule in
       printAndCollect("", lintMessage: &lintMessage)
@@ -175,8 +214,9 @@ private extension SPMGraphLint {
         lintMessage: &lintMessage
       )
 
-      let errors = rule.validate(package, excludedSuffixes)
+      let errors = packages.flatMap { rule.validate($0, excludedSuffixes) }
       totalErrorsCount += errors.count
+      identities.formUnion(errors.map { "\(rule.id): \($0.localizedDescription)" })
 
       if errors.isEmpty {
         printAndCollect(
@@ -264,7 +304,8 @@ private extension SPMGraphLint {
 
     return Result(
       hasErrors: hasErrors,
-      message: lintMessage
+      message: lintMessage,
+      identities: identities
     )
   }
 
@@ -306,6 +347,7 @@ extension SPMGraphLint {
   public enum Error: LocalizedError {
     case lintFailedAndStrictIsOn
     case failedToSaveOutputFile(error: Swift.Error)
+    case baselineMismatch(new: [String], stale: [String])
 
     public var errorDescription: String? {
       switch self {
@@ -313,6 +355,8 @@ extension SPMGraphLint {
         "Lint failed and strict flag is on!"
       case let .failedToSaveOutputFile(error):
         "Failed to save output file with error: \(error)"
+      case let .baselineMismatch(new, stale):
+        "Lint baseline mismatch: \(new.count) new violations, \(stale.count) stale baseline entries!"
       }
     }
   }

@@ -42,8 +42,33 @@ struct LintArguments: ParsableArguments {
   )
   public var expectedWarningsCount: UInt = 0
 
+  @Option(
+    name: .customLong("root"),
+    help: "Another Package.swift directory linted together with the first one. Repeat it for several packages."
+  )
+  var additionalPackageDirectories: [String] = []
+
+  @Option(
+    name: .customLong("baseline"),
+    help:
+      "A file of accepted violations, one per line. The lint fails on a violation missing from it and on an entry that no longer occurs, so it can only shrink."
+  )
+  var baselinePath: String?
+
+  @Flag(
+    name: .customLong("write-baseline"),
+    help: "Writes the current violations into the `--baseline` file instead of comparing against it."
+  )
+  var writeBaseline: Bool = false
+
   @OptionGroup
   var config: SPMGraphConfigArguments
+
+  func validate() throws {
+    if writeBaseline && baselinePath == nil {
+      throw ValidationError("`--write-baseline` requires `--baseline <path>`.")
+    }
+  }
 }
 
 struct Lint: AsyncParsableCommand {
@@ -65,12 +90,15 @@ struct Lint: AsyncParsableCommand {
     let library = try SPMGraphLint(
       input: SPMGraphLintInput(
         spmPackageDirectory: arguments.common.spmPackageDirectory,
+        additionalPackageDirectories: arguments.additionalPackageDirectories,
         configBuildDirectory: arguments.config.configBuildDirectory,
         excludedSuffixes: arguments.common.excludedSuffixes,
         isStrict: arguments.strict,
         verbose: arguments.common.verbose,
         expectedWarningsCount: arguments.expectedWarningsCount,
-        outputFilePath: arguments.outputFilePath
+        outputFilePath: arguments.outputFilePath,
+        baselinePath: arguments.baselinePath,
+        writeBaseline: arguments.writeBaseline
       )
     )
     try await library.run()

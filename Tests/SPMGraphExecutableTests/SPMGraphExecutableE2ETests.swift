@@ -43,6 +43,13 @@ struct SPMGraphExecutableE2ETests {
     assertProcess()
   }
 
+  @Test func writeBaselineRequiresBaseline() throws {
+    try runToolProcess(command: "lint \(AbsolutePath.fixturePackagePath) --write-baseline")
+    let errorContent = String(decoding: errorPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+    #expect(errorContent.contains("`--write-baseline` requires `--baseline <path>`."))
+    #expect(process.terminationStatus != 0)
+  }
+
   @Test()
   func visualize() async throws {
     // GIVEN

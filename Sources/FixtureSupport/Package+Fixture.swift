@@ -37,6 +37,12 @@ public extension AbsolutePath {
   }
 }
 
+public extension AbsolutePath {
+  static var secondFixturePackagePath: AbsolutePath {
+    fixturePackagePath.parentDirectory.appending(component: "SecondPackageFixture")
+  }
+}
+
 public func loadFixturePackage() async throws -> Package {
   let observability = ObservabilitySystem { print("\($0): \($1)") }
   let workspace = try Workspace(forRootPackage: .fixturePackagePath)
