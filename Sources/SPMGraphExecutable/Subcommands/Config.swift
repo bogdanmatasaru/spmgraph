@@ -32,6 +32,18 @@ struct ConfigArguments: ParsableArguments {
   )
   var spmPackageDirectory: String
 
+  @Option(
+    name: .customLong("spmgraph-url"),
+    help: "Git URL of the spmgraph package the generated config package depends on."
+  )
+  var spmgraphURL: String = SPMGraphEditInput.defaultSpmgraphURL
+
+  @Option(
+    name: .customLong("spmgraph-revision"),
+    help: "Commit, tag or branch of `--spmgraph-url`. It must match the spmgraph version that loads the config."
+  )
+  var spmgraphRevision: String = SPMGraphEditInput.defaultSpmgraphRevision
+
   @OptionGroup
   var config: SPMGraphConfigArguments
 }
@@ -47,7 +59,7 @@ struct Config: AsyncParsableCommand {
 
       Once the `SPMGraphConfig.swift` is edited, your configuration is dynamically loaded into spmgraph and leveraged on all other commands.  
       """,
-    version: "1.0.1"
+    version: "1.1.0"
   )
 
   @OptionGroup var arguments: ConfigArguments
@@ -57,7 +69,9 @@ struct Config: AsyncParsableCommand {
       input: SPMGraphEditInput(
         spmPackageDirectory: arguments.spmPackageDirectory,
         configBuildDirectory: arguments.config.configBuildDirectory,
-        verbose: arguments.verbose
+        verbose: arguments.verbose,
+        spmgraphURL: arguments.spmgraphURL,
+        spmgraphRevision: arguments.spmgraphRevision
       )
     )
     try await spmgraphEdit.run()

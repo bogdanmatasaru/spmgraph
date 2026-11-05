@@ -81,7 +81,7 @@ struct Lint: AsyncParsableCommand {
         Run checks on a given Package.swift and raises configuration issues and potential optimisations
         that otherwise would be bubbled up by the build system later on.
       """,
-    version: "1.0.1"
+    version: "1.1.0"
   )
 
   @OptionGroup var arguments: LintArguments

@@ -66,12 +66,6 @@ public final class SPMGraphLoad: SPMGraphLoadProtocol {
   }
 
   private lazy var editPackageDirectory: AbsolutePath = configBuildDirectory.appending("spmgraph-config")
-  private lazy var dynamicLoadingFileDestination: AbsolutePath =
-    editPackageDirectory
-    .appending(component: "Sources")
-    .appending(component: "SPMGraphConfig")
-    .appending(component: "_DoNotEdit_DynamicLoading")
-    .appending(extension: "swift")
 
   public init(input: SPMGraphLoadInput) throws(SPMGraphLoadError) {
     self.input = input
@@ -90,9 +84,11 @@ private extension SPMGraphLoad {
   func load(userConfigFile: AbsolutePath) throws(SPMGraphLoadError) {
     print("Loading your SPMGraphConfig.swift into spmgraph... please await")
 
-    defer { try? removeDynamicLoadingFile() }
-
-    try includeDynamicLoadingFile()
+    do {
+      try DynamicLoadingFile.install(into: editPackageDirectory)
+    } catch {
+      throw .failedToSetupDynamicLoading(underlying: error)
+    }
 
     do {
       if verbose {
@@ -119,38 +115,26 @@ private extension SPMGraphLoad {
 
     print("Finished loading")
   }
+}
 
-  func includeDynamicLoadingFile() throws(SPMGraphLoadError) {
-    do {
-      guard
-        let dynamicLoadingTemplateURL = Bundle.module.url(
-          forResource: "Resources/_DoNotEdit_DynamicLoading",
-          withExtension: "txt"
-        )
-      else {
-        throw SPMGraphLoadError.failedToLoadTheConfigIntoSpmgraph(
-          localizedDescription: "Unable to read the dynamic loading template"
-        )
-      }
-
-      let dynamicLoadingTemplateFile = try AbsolutePath(
-        validating: dynamicLoadingTemplateURL.path()
+enum DynamicLoadingFile {
+  static func install(into editPackageDirectory: AbsolutePath) throws {
+    guard
+      let template = Bundle.module.url(
+        forResource: "Resources/_DoNotEdit_DynamicLoading",
+        withExtension: "txt"
       )
-      // Copy the template DoNotEdit_DynamicLoading.swift file into the edit package
-      try localFileSystem.copy(
-        from: dynamicLoadingTemplateFile,
-        to: dynamicLoadingFileDestination
+    else {
+      throw SPMGraphLoadError.failedToLoadTheConfigIntoSpmgraph(
+        localizedDescription: "Unable to read the dynamic loading template"
       )
-    } catch {
-      throw .failedToSetupDynamicLoading(underlying: error)
     }
-  }
 
-  func removeDynamicLoadingFile() throws(SPMGraphLoadError) {
-    do {
-      try FileManager.default.removeItem(at: dynamicLoadingFileDestination.asURL)
-    } catch {
-      throw .failedToSetupDynamicLoading(underlying: error)
-    }
+    let destination = editPackageDirectory
+      .appending(components: "Sources", "SPMGraphConfig", "_DoNotEdit_DynamicLoading.swift")
+    try localFileSystem.writeFileContents(
+      destination,
+      bytes: try localFileSystem.readFileContents(AbsolutePath(validating: template.path()))
+    )
   }
 }

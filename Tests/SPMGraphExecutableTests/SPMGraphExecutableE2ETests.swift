@@ -141,6 +141,42 @@ struct SPMGraphExecutableE2ETests {
     try localFileSystem.removeFileTree(.configPackagePath)
   }
 
+  @Test(
+    arguments: [
+      (
+        "",
+        "url: \"https://github.com/bogdanmatasaru/spmgraph.git\"",
+        "revision: \"1.1.0\""
+      ),
+      (
+        "--spmgraph-url https://example.com/spmgraph.git --spmgraph-revision abc123 ",
+        "url: \"https://example.com/spmgraph.git\"",
+        "revision: \"abc123\""
+      ),
+    ]
+  )
+  func configPackagePointsAtSpmgraph(options: String, url: String, revision: String) async throws {
+    createUserConfigFile()
+    try stubUserConfigFile()
+
+    try runToolProcess(
+      command: "config \(AbsolutePath.fixturePackagePath) \(options)-d \(AbsolutePath.buildDir)",
+      waitForExit: false
+    )
+    try await Task.sleep(for: .seconds(2))
+
+    let manifest = try localFileSystem.readFileContents(
+      AbsolutePath.configPackagePath.appending(component: "Package.swift")
+    ).cString
+    #expect(manifest.contains(url))
+    #expect(manifest.contains(revision))
+
+    process.terminate()
+    assertProcess()
+    try localFileSystem.removeFileTree(.userConfigFilePath)
+    try localFileSystem.removeFileTree(.configPackagePath)
+  }
+
   @Test func configWhenEditing() async throws {
     // GIVEN
     createUserConfigFile()
@@ -169,10 +205,12 @@ struct SPMGraphExecutableE2ETests {
       ]
     )
     #expect(
-      try localFileSystem.getDirectoryContents(.configPackageSources) ==
+      try localFileSystem.getDirectoryContents(.configPackageSources).sorted() ==
       [
-        "SPMGraphConfig.swift"
-      ]
+        "SPMGraphConfig.swift",
+        "_DoNotEdit_DynamicLoading.swift",
+      ],
+      "The config package builds the loadable dylib on its own"
     )
     #expect(
       try localFileSystem.readFileContents(.configPackageConfigFile) ==

@@ -30,16 +30,27 @@ public struct SPMGraphEditInput {
   let buildDirectory: AbsolutePath
   /// Show extra logging for troubleshooting purposes
   let verbose: Bool
+  /// Git URL of the spmgraph package the config package depends on
+  let spmgraphURL: String
+  /// Revision (commit, tag or branch) of ``spmgraphURL``; it must match the running spmgraph
+  let spmgraphRevision: String
+
+  public static let defaultSpmgraphURL = "https://github.com/bogdanmatasaru/spmgraph.git"
+  public static let defaultSpmgraphRevision = "1.1.0"
 
   /// Makes an instance of ``SPMGraphLintInput``
   public init(
     spmPackageDirectory: String,
     configBuildDirectory: String?,
-    verbose: Bool
+    verbose: Bool,
+    spmgraphURL: String = defaultSpmgraphURL,
+    spmgraphRevision: String = defaultSpmgraphRevision
   ) throws {
     self.spmPackageDirectory = try AbsolutePath.packagePath(spmPackageDirectory)
     self.buildDirectory = try AbsolutePath.configBuildDirectory(configBuildDirectory)
     self.verbose = verbose
+    self.spmgraphURL = spmgraphURL
+    self.spmgraphRevision = spmgraphRevision
   }
 }
 
@@ -112,6 +123,12 @@ public final class SPMGraphEdit: SPMGraphEditProtocol {
 
     // Copy the template Package.swift into the edit package
     try copyTemplatePackageDotSwift(templatePackageDotSwiftFileURL: templatePackageDotSwiftFileURL)
+
+    do {
+      try DynamicLoadingFile.install(into: editPackageDirectory)
+    } catch {
+      throw .failedToCopyTemplateFile(underlying: error)
+    }
 
     // The config file should be in the same dir as the root of their package
     let userConfigFile = input.spmPackageDirectory.appending("SPMGraphConfig.swift")
@@ -206,11 +223,10 @@ private extension SPMGraphEdit {
         component: "Package.swift"
       )
 
-      // Copy the template Package.swift file into the edit package
-      try localFileSystem.copy(
-        from: templatePackageDotSwiftFile,
-        to: packageDotSwiftDestinationPath
-      )
+      let manifest = try localFileSystem.readFileContents(templatePackageDotSwiftFile).cString
+        .replacingOccurrences(of: "{{SPMGRAPH_URL}}", with: input.spmgraphURL)
+        .replacingOccurrences(of: "{{SPMGRAPH_REVISION}}", with: input.spmgraphRevision)
+      try localFileSystem.writeFileContents(packageDotSwiftDestinationPath, string: manifest)
     } catch {
       throw .failedToCopyTemplateFile(underlying: error)
     }

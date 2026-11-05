@@ -17,13 +17,13 @@ let package = Package(
     ),
   ],
   dependencies: [
-    // Pinned to the latest commit of the release, otherwise it fails because it depends
+    // Pinned to a revision, otherwise it fails because it depends
     // on the `swift-package-manager` that isn't a stable release.
     //
-    // - Note: When developing it should be updated to the working branch
+    // - Note: Set with `spmgraph config --spmgraph-url --spmgraph-revision`
     .package(
-      url: "https://github.com/getyourguide/spmgraph.git",
-      revision: "17256eaab5d1233bc21e174393bf0ee518287fa9"
+      url: "{{SPMGRAPH_URL}}",
+      revision: "{{SPMGRAPH_REVISION}}"
     ),
     // - Pinned to the Swift 6.4.2 release / Xcode 27.2
     // It auto exports SwiftToolsSupport, so no need to directly depend it 🙏
