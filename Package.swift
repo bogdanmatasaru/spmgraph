@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
   name: "spmgraph",
   platforms: [
-    .macOS(.v13)
+    .macOS(.v14)
   ],
   products: [
     .executable(
@@ -38,11 +38,11 @@ let package = Package(
       .upToNextMinor(from: "1.6.2")
     ),
 
-    // - Pinned to the the Swift 6.2 development / Xcode 16.3
+    // - Pinned to the Swift 6.4.2 release / Xcode 27.2
     // It auto exports SwiftToolsSupport, so no need to directly depend it 🙏
     .package(
       url: "https://github.com/apple/swift-package-manager",
-      revision: "swift-6.2-RELEASE"
+      revision: "swift-6.4.2-RELEASE"
     ),
     .package(
       url: "https://github.com/aus-der-Technik/FileMonitor",
