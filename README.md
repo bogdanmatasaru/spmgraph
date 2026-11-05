@@ -152,6 +152,24 @@ spmgraph lint <package-path> --baseline lint-baseline.txt
 - each line is a violation identity, `<rule id>: <message>`
 - a violation missing from the file fails the run, and so does an entry that no longer occurs, so the baseline can only shrink
 
+#### Graph rules
+A rule made with `SPMGraphConfig.Lint.Rule.graph` gets every root package in one call, so it can relate a module to modules of other packages
+
+```swift
+static let noFeatureToFeature = SPMGraphConfig.Lint.Rule.graph(
+  id: "noFeatureToFeature",
+  name: "No feature to feature",
+  abstract: "A feature module depends on no other feature module."
+) { packages, excludedSuffixes in
+  let features = Set(packages.flatMap(\.modules).map(\.name).filter { $0.hasSuffix("Feature") })
+  return packages.flatMap(\.modules).flatMap { module in
+    module.dependencies.map(\.name)
+      .filter { module.name.hasSuffix("Feature") && features.contains($0) }
+      .map { LintError.featureToFeature(module.name, $0) }
+  }
+}
+```
+
 ## CI
 
 Custom GitHub actions are [available](./github/actions) for running the different spmgraph commands in CI environments.

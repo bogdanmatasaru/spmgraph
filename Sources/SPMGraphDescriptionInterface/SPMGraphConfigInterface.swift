@@ -41,7 +41,12 @@ public struct SPMGraphConfig: Sendable {
       public let id: String
       public let name: String
       public let abstract: String
-      public var validate: @Sendable (Package, _ excludedSuffixes: [String]) -> [LocalizedError]
+      /// Validates every loaded root package at once, so a rule can relate modules across packages
+      public let validateGraph: @Sendable ([Package], _ excludedSuffixes: [String]) -> [LocalizedError]
+
+      public var validate: @Sendable (Package, _ excludedSuffixes: [String]) -> [LocalizedError] {
+        { [validateGraph] package, excludedSuffixes in validateGraph([package], excludedSuffixes) }
+      }
 
       public init(
         id: String,
@@ -49,14 +54,34 @@ public struct SPMGraphConfig: Sendable {
         abstract: String,
         validate: @Sendable @escaping (Package, _: [String]) -> [LocalizedError]
       ) {
+        self.init(id: id, name: name, abstract: abstract, validateGraph: { packages, excludedSuffixes in
+          packages.flatMap { validate($0, excludedSuffixes) }
+        })
+      }
+
+      private init(
+        id: String,
+        name: String,
+        abstract: String,
+        validateGraph: @Sendable @escaping ([Package], _: [String]) -> [LocalizedError]
+      ) {
         self.id = id
         self.name = name
         self.abstract = abstract
-        self.validate = validate
+        self.validateGraph = validateGraph
+      }
+
+      /// Makes a rule that sees every loaded root package at once
+      public static func graph(
+        id: String,
+        name: String,
+        abstract: String,
+        validate: @Sendable @escaping ([Package], _: [String]) -> [LocalizedError]
+      ) -> Self {
+        Self(id: id, name: name, abstract: abstract, validateGraph: validate)
       }
     }
 
-    /// A set of Lint rules that traverse a loaded dependency graph and return errors on broken rules
     public let rules: [Rule]
     /// When **enabled** it returns a **failure exit** code on **any warnings**
     public let isStrict: Bool

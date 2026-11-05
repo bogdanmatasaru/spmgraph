@@ -146,7 +146,7 @@ struct SPMGraphExecutableE2ETests {
       (
         "",
         "url: \"https://github.com/bogdanmatasaru/spmgraph.git\"",
-        "revision: \"1.1.0\""
+        "revision: \"1.2.0\""
       ),
       (
         "--spmgraph-url https://example.com/spmgraph.git --spmgraph-revision abc123 ",

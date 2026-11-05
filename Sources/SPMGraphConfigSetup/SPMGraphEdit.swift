@@ -36,7 +36,7 @@ public struct SPMGraphEditInput {
   let spmgraphRevision: String
 
   public static let defaultSpmgraphURL = "https://github.com/bogdanmatasaru/spmgraph.git"
-  public static let defaultSpmgraphRevision = "1.1.0"
+  public static let defaultSpmgraphRevision = "1.2.0"
 
   /// Makes an instance of ``SPMGraphLintInput``
   public init(

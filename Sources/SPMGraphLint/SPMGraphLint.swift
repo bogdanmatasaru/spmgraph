@@ -214,7 +214,7 @@ private extension SPMGraphLint {
         lintMessage: &lintMessage
       )
 
-      let errors = packages.flatMap { rule.validate($0, excludedSuffixes) }
+      let errors = rule.validateGraph(packages, excludedSuffixes)
       totalErrorsCount += errors.count
       identities.formUnion(errors.map { "\(rule.id): \($0.localizedDescription)" })
 

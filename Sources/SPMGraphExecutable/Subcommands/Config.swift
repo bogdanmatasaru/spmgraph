@@ -59,7 +59,7 @@ struct Config: AsyncParsableCommand {
 
       Once the `SPMGraphConfig.swift` is edited, your configuration is dynamically loaded into spmgraph and leveraged on all other commands.  
       """,
-    version: "1.1.0"
+    version: "1.2.0"
   )
 
   @OptionGroup var arguments: ConfigArguments

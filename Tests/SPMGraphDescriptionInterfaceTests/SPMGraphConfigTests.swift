@@ -317,5 +317,27 @@ struct SPMGraphConfigTests {
       #expect(config.lint.rules.count == 1)
       #expect(config.lint.rules.first?.id == "customRule")
     }
+
+    @Test("A graph rule validates one package as a graph of one")
+    func testGraphRuleValidatesOnePackage() async throws {
+      // GIVEN
+      let rule = SPMGraphConfig.Lint.Rule.graph(
+        id: "graphRule",
+        name: "Graph Rule",
+        abstract: "A rule over every loaded package",
+        validate: { packages, _ in
+          packages.map { SPMGraphConfig.Lint.Error.unusedDependencies(moduleName: $0.manifest.displayName, dependencyName: "\(packages.count)") }
+        }
+      )
+
+      // WHEN
+      let package = try await loadFixturePackage()
+      let errors = rule.validate(package, [])
+
+      // THEN
+      let error = try #require(errors.first as? SPMGraphConfig.Lint.Error)
+      #expect(errors.count == 1)
+      #expect(error == .unusedDependencies(moduleName: package.manifest.displayName, dependencyName: "1"))
+    }
   }
 }

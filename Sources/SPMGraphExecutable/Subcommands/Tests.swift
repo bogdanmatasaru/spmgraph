@@ -60,7 +60,7 @@ struct Tests: AsyncParsableCommand {
       Given changed files, it traverses the dependency graph and defines which modules were affected.
       Useful to optimize for building and running tests only for what changed.
       """,
-    version: "1.1.0"
+    version: "1.2.0"
   )
 
   @OptionGroup var arguments: TestsArguments

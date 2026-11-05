@@ -41,6 +41,19 @@ struct SPMGraphLintTests {
     #expect(recorder.packageNames == ["LintFixturePackage", "SecondFixturePackage"])
   }
 
+  @Test("It runs a graph rule once with every root package")
+  func graphRule() async throws {
+    let recorder = Recorder()
+    let lint = try makeLint(
+      roots: [.fixturePackagePath, .secondFixturePackagePath],
+      rule: .recordingGraph(into: recorder)
+    )
+
+    try await lint.run()
+
+    #expect(recorder.packageNames == ["LintFixturePackage+SecondFixturePackage"])
+  }
+
   @Test("It writes the sorted, unique violation identities to the baseline file")
   func writesBaseline() async throws {
     let baseline = try temporaryFile()
@@ -146,6 +159,13 @@ private extension SPMGraphConfig.Lint.Rule {
     Self(id: "fake", name: "Fake", abstract: "Fake") { _, _ in
       messages.map { FakeError(errorDescription: $0) }
     }
+  }
+
+  static func recordingGraph(into recorder: Recorder) -> Self {
+    .graph(id: "fake", name: "Fake", abstract: "Fake", validate: { packages, _ in
+      recorder.record(packages.map(\.manifest.displayName).joined(separator: "+"))
+      return []
+    })
   }
 
   static func recording(into recorder: Recorder) -> Self {
