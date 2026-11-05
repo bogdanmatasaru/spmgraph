@@ -56,6 +56,7 @@ spmgraph config <package-path> --help
 
 - if none, it creates an initial `SPMGraphConfig.swift` on the same path as your `Package.swift`
 - spmgraph opens up a temporary Swift Package where you configure spmgraph in Swift and build to check that everything is correct
+- `--spmgraph-url` and `--spmgraph-revision` choose the spmgraph the temporary package depends on; the revision must match the spmgraph you run
 
 #### Examples
 For example, enforce that
@@ -133,6 +134,24 @@ Bypass the strict mode on a given number of allowed warnings
 spmgraph lint <package-path> --strict --warningsCount 3 <other-options>
 ```
 
+#### Several packages at once
+Lint a repository made of many local packages in one run; each `--root` adds a `Package.swift` directory
+
+```bash
+spmgraph lint <package-path> --root <other-package-path> --root <another-package-path> <other-options>
+```
+
+#### Baseline
+Adopt the linter on a graph that already has violations: record them once, then fail only on change
+
+```bash
+spmgraph lint <package-path> --baseline lint-baseline.txt --write-baseline
+spmgraph lint <package-path> --baseline lint-baseline.txt
+```
+
+- each line is a violation identity, `<rule id>: <message>`
+- a violation missing from the file fails the run, and so does an entry that no longer occurs, so the baseline can only shrink
+
 ## CI
 
 Custom GitHub actions are [available](./github/actions) for running the different spmgraph commands in CI environments.
@@ -152,7 +171,7 @@ Custom GitHub actions are [available](./github/actions) for running the differen
 
 ## Requirements
 - [graphviz](https://github.com/graphp/graphviz) (available via `brew install graphviz`)
-- Xcode 16.3+ and the Swift 6.1+ toolchain
+- Xcode 27.2+ and the Swift 6.4.2+ toolchain, macOS 14+
 
 ## Installation
 
